@@ -1,0 +1,1912 @@
+You are a senior full-stack software engineer, software architect, UI/UX designer, database engineer, and QA engineer.
+
+Your task is to build a complete, professional, working final-year project from scratch.
+
+Do not only generate an outline or sample components. Actually scaffold the application, install dependencies, create the database structure, implement the frontend and backend, connect the APIs, implement the plagiarism/similarity engine, add authentication and authorization, add tests, run the application, fix errors, and leave the project in a working state.
+
+Do not stop after scaffolding.
+
+Do not ask me to manually create files that you can create yourself.
+
+If an implementation detail is ambiguous, make a sensible professional decision and continue.
+
+Before finishing, run linting, type checking, tests, and a production build and fix all errors that are within the codebase.
+
+# PROJECT NAME
+
+ThesisGuard
+
+Full academic title:
+
+"Design of an Online Student Thesis Repository with Automated Plagiarism Detection and Prevention"
+
+The system is intended primarily for tertiary institutions such as universities and polytechnics.
+
+# PROJECT DIRECTORY
+
+Create the complete project inside:
+
+thesisguard/
+
+Do not place project files outside this folder.
+
+# CORE TECHNOLOGY STACK
+
+Use:
+
+* Next.js with App Router
+* TypeScript
+* Tailwind CSS
+* Material UI where it improves components such as dialogs, tables, forms, menus, progress indicators, tabs, drawers and data displays
+* Supabase
+* PostgreSQL through Supabase
+* Supabase Authentication
+* Supabase Storage
+* DeepSeek API
+* Tavily Search API as the DEFAULT public web search provider
+* Brave Search API as an OPTIONAL alternative public web search provider
+* OpenAlex API for scholarly and academic search
+* React Hook Form
+* Zod
+* Server-side document parsing
+* Vitest for unit tests
+* Playwright for important end-to-end flows if practical
+
+Use stable, current, mutually compatible package versions.
+
+Do not use deprecated Next.js patterns.
+
+Use the Next.js App Router and Server Components appropriately.
+
+# IMPORTANT API RULE
+
+The application must be able to operate without requiring paid third-party services except DeepSeek.
+
+Use:
+
+1. DeepSeek
+   Paid API supplied by me.
+   Used only for AI interpretation, citation guidance and plagiarism-prevention feedback.
+
+2. Tavily
+   DEFAULT web-search provider.
+   Use the free API tier.
+   No payment should be required for normal development/testing.
+
+3. OpenAlex
+   Academic/research search provider.
+   Use a free OpenAlex API key.
+   Use its free daily allowance.
+
+4. Brave Search
+   OPTIONAL.
+   Implement an adapter for it but do not make it necessary for the application to work.
+
+Create a provider abstraction so changing web-search providers does not require rewriting the plagiarism engine.
+
+Example:
+
+src/lib/search/
+web/
+types.ts
+provider.ts
+tavily.ts
+brave.ts
+academic/
+openalex.ts
+
+Use an environment variable:
+
+WEB_SEARCH_PROVIDER=tavily
+
+Allow:
+
+WEB_SEARCH_PROVIDER=brave
+
+If Tavily or Brave is unavailable or a quota is reached, repository comparison and OpenAlex checking must continue working.
+
+# ENVIRONMENT VARIABLES
+
+Create a complete `.env.example`.
+
+It should contain something similar to:
+
+NEXT_PUBLIC_APP_NAME=ThesisGuard
+
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+DEEPSEEK_API_KEY=
+DEEPSEEK_MODEL=deepseek-v4-flash
+
+TAVILY_API_KEY=
+
+BRAVE_SEARCH_API_KEY=
+WEB_SEARCH_PROVIDER=tavily
+
+OPENALEX_API_KEY=
+
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+MAX_UPLOAD_SIZE_MB=20
+MAX_WEB_SEARCH_QUERIES_PER_SCAN=15
+MAX_ACADEMIC_SEARCH_QUERIES_PER_SCAN=10
+MAX_AI_ANALYSIS_MATCHES=20
+
+Never expose secret API keys to client-side JavaScript.
+
+DeepSeek, Tavily, Brave, OpenAlex and Supabase service-role operations must run server side.
+
+# IMPORTANT ARCHITECTURE RULE
+
+Use a clean three-tier architecture:
+
+1. Presentation layer
+   Next.js pages, React components, Material UI and Tailwind.
+
+2. Application/business layer
+   Authentication rules, repository logic, document processing, plagiarism detection, external search, report generation and AI analysis.
+
+3. Data layer
+   Supabase PostgreSQL and Supabase Storage.
+
+Keep business logic out of React components.
+
+Do not put the entire plagiarism system into one API route.
+
+Create reusable modules.
+
+# APPLICATION PURPOSE
+
+The system must solve two connected problems:
+
+1. Student Thesis Repository
+2. Automated Plagiarism Detection and Prevention
+
+It must allow academic documents to be uploaded, stored, searched, accessed and analysed for textual similarity.
+
+The system must NOT claim that a similarity percentage automatically proves plagiarism.
+
+Throughout the application use language such as:
+
+"Similarity Score"
+"Potential Match"
+"Matching Content"
+"Requires Review"
+
+Include a notice:
+
+"A similarity score indicates textual overlap and should not by itself be treated as proof of plagiarism. Human academic review is recommended."
+
+# USER ROLES
+
+Implement three roles:
+
+1. Student
+2. Supervisor
+3. Administrator
+
+Use Supabase Authentication.
+
+Do not store passwords manually.
+
+Create a `profiles` table connected to `auth.users`.
+
+## Student permissions
+
+Students can:
+
+* Create an account
+* Login/logout
+* Update basic profile
+* Upload a thesis
+* Enter thesis metadata
+* Save drafts
+* Submit a thesis
+* Start a similarity check
+* View status of a similarity check
+* View similarity reports for their own work
+* View matched passages
+* View matched sources
+* Receive plagiarism-prevention suggestions
+* Download a similarity report
+* Search the approved thesis repository
+* View approved theses they are permitted to access
+* Resubmit revised versions where allowed
+
+## Supervisor permissions
+
+Supervisors can:
+
+* Login
+* View student submissions
+* View similarity reports
+* View matching passages and sources
+* Add review comments
+* Approve or reject submissions
+* Search the thesis repository
+* View submission history
+* Filter by student, department, year, title and similarity score
+
+## Administrator permissions
+
+Administrators can:
+
+* Manage users
+* Manage user roles
+* Manage departments
+* Manage faculties
+* Manage theses
+* Approve repository documents
+* Archive documents
+* Delete documents where appropriate
+* View all similarity checks
+* Configure institutional similarity thresholds
+* View basic system statistics
+* Manage system settings
+
+Protect routes according to role.
+
+Enforce authorization server side, not only by hiding UI elements.
+
+# AUTHENTICATION PAGES
+
+Implement:
+
+/login
+/register
+/forgot-password
+
+Registration should collect:
+
+* Full name
+* Email
+* Password
+* Confirm password
+* Matriculation number for students
+* Faculty
+* Department
+
+New public registrations should default to STUDENT.
+
+Supervisor and administrator roles must not be selectable from the public registration form.
+
+# MAIN ROUTES
+
+Public:
+
+/
+/login
+/register
+/forgot-password
+
+Authenticated:
+
+/dashboard
+/repository
+/repository/[id]
+/theses
+/theses/new
+/theses/[id]
+/theses/[id]/scan
+/scans
+/scans/[id]
+/reports/[id]
+/profile
+
+Supervisor:
+
+/supervisor
+/supervisor/submissions
+/supervisor/submissions/[id]
+
+Admin:
+
+/admin
+/admin/users
+/admin/theses
+/admin/scans
+/admin/departments
+/admin/settings
+
+Create sensible route groups and layouts.
+
+# DATABASE DESIGN
+
+Use Supabase PostgreSQL.
+
+Create SQL migrations.
+
+At minimum implement these tables:
+
+## profiles
+
+* id UUID PK references auth.users
+* full_name
+* email
+* role enum STUDENT | SUPERVISOR | ADMIN
+* matric_number nullable
+* staff_number nullable
+* faculty_id nullable
+* department_id nullable
+* avatar_url nullable
+* created_at
+* updated_at
+
+## faculties
+
+* id
+* name
+* code
+* created_at
+
+## departments
+
+* id
+* faculty_id
+* name
+* code
+* created_at
+
+## theses
+
+* id
+* student_id
+* supervisor_id nullable
+* title
+* abstract
+* keywords
+* faculty_id
+* department_id
+* academic_year
+* document_path
+* original_filename
+* mime_type
+* file_size
+* status
+* extracted_text nullable
+* normalized_text nullable
+* word_count
+* approved_at nullable
+* created_at
+* updated_at
+
+Statuses:
+
+DRAFT
+SUBMITTED
+UNDER_REVIEW
+APPROVED
+REJECTED
+ARCHIVED
+
+## thesis_chunks
+
+Store chunks used for repository similarity searching.
+
+Fields:
+
+* id
+* thesis_id
+* chunk_index
+* original_text
+* normalized_text
+* token_count
+* fingerprint_data or fingerprint representation
+* created_at
+
+Add useful indexes.
+
+## plagiarism_scans
+
+* id
+* thesis_id
+* requested_by
+* status
+* overall_similarity
+* repository_similarity
+* web_similarity
+* academic_similarity
+* total_sources
+* total_matches
+* eligible_word_count
+* matched_word_count
+* started_at
+* completed_at
+* error_message nullable
+* created_at
+
+Statuses:
+
+QUEUED
+EXTRACTING
+SEARCHING_REPOSITORY
+SEARCHING_WEB
+SEARCHING_ACADEMIC
+COMPARING
+AI_ANALYSIS
+COMPLETED
+FAILED
+
+## scan_sources
+
+* id
+* scan_id
+* source_type
+
+Source types:
+
+REPOSITORY
+WEB
+ACADEMIC
+
+Include:
+
+* source_title
+* source_url nullable
+* author nullable
+* publication_year nullable
+* doi nullable
+* repository_thesis_id nullable
+* similarity_score
+* metadata JSONB
+* created_at
+
+## similarity_matches
+
+* id
+* scan_id
+* source_id
+* thesis_chunk_id nullable
+* submitted_text
+* source_text
+* similarity_score
+* match_type
+* start_position nullable
+* end_position nullable
+* is_quoted
+* is_cited
+* excluded_from_score
+* ai_classification nullable
+* ai_explanation nullable
+* created_at
+
+Possible match_type values:
+
+EXACT
+NEAR_EXACT
+FINGERPRINT
+LEXICAL
+SEMANTIC
+
+## supervisor_reviews
+
+* id
+* thesis_id
+* supervisor_id
+* decision
+* comment
+* created_at
+
+## system_settings
+
+Store:
+
+* similarity_warning_threshold
+* similarity_high_threshold
+* maximum_file_size
+* maximum_daily_scans
+* allow_student_resubmission
+* external_search_enabled
+* academic_search_enabled
+
+Use sensible development defaults.
+
+Do not present institutional similarity thresholds as universal academic rules.
+
+Make them configurable.
+
+# ROW LEVEL SECURITY
+
+Create proper Supabase RLS policies.
+
+Students should only be able to edit their own theses.
+
+Students should only view their own private scans.
+
+Approved repository theses may be searchable by authenticated users depending on repository policy.
+
+Supervisors should have read access to assigned students.
+
+Admins should have full management access.
+
+Do not simply disable RLS.
+
+# STORAGE
+
+Create a private Supabase Storage bucket:
+
+theses
+
+Optionally create:
+
+avatars
+
+Thesis documents must not be publicly accessible through permanent URLs.
+
+Use authenticated access or signed URLs.
+
+# THESIS UPLOAD
+
+Create an excellent upload experience.
+
+Use a multi-step form:
+
+Step 1:
+Thesis information
+
+* Title
+* Abstract
+* Keywords
+* Faculty
+* Department
+* Academic year
+* Supervisor where applicable
+
+Step 2:
+Document upload
+
+Support:
+
+* PDF
+* DOCX
+
+Maximum default size:
+20 MB
+
+Step 3:
+Review and submit
+
+Show:
+
+* filename
+* file size
+* title
+* department
+* academic year
+
+Then upload.
+
+Provide:
+
+* drag-and-drop
+* file picker
+* upload progress
+* validation
+* clear errors
+* success state
+
+Validate the actual file type server side.
+
+Do not trust only the browser MIME type.
+
+Reject unsupported files.
+
+Sanitize filenames.
+
+# DOCUMENT TEXT EXTRACTION
+
+Implement server-side PDF and DOCX extraction.
+
+For DOCX use a stable library such as Mammoth.
+
+For PDF choose a stable Node-compatible PDF text extraction library compatible with the current Next.js version.
+
+If `pdf-parse` is currently compatible, it may be used.
+
+Otherwise use a maintained `pdfjs-dist` based solution.
+
+Do not run heavy parsing in an Edge runtime.
+
+Use Node.js runtime where required.
+
+Create:
+
+src/lib/documents/
+extract-pdf.ts
+extract-docx.ts
+extract-document.ts
+normalize-text.ts
+section-detector.ts
+chunk-text.ts
+
+# PREPROCESSING
+
+Before comparison:
+
+* normalize Unicode
+* normalize whitespace
+* preserve an original copy
+* produce a lowercase normalized copy
+* remove duplicate whitespace
+* normalize punctuation for comparison
+* identify bibliography/reference section
+* identify quotations where practical
+* tokenize text
+* split sentences
+* split paragraphs
+* create overlapping chunks
+* remove extremely short chunks
+* identify low-information/common chunks
+
+Do NOT blindly remove all stop words from content that will later be highlighted.
+
+Use separate representations for display and comparison.
+
+# REFERENCES
+
+Attempt to identify sections with headings such as:
+
+References
+Bibliography
+Works Cited
+
+By default, bibliography/reference-list text should not contribute heavily to the overall similarity percentage.
+
+Store whether a detected match appears inside the reference section.
+
+# QUOTATIONS AND CITATIONS
+
+Attempt to identify:
+
+* quoted text
+* parenthetical citations
+* author-year citations
+* numbered citation patterns
+
+Correctly quoted/cited material can still appear in the report but should be clearly labelled.
+
+Do not automatically call correctly cited similarity plagiarism.
+
+# INTERNAL REPOSITORY SIMILARITY ENGINE
+
+This is one of the most important parts of the project.
+
+Do NOT use DeepSeek to calculate the similarity score.
+
+Implement deterministic algorithms locally.
+
+At minimum implement:
+
+1. N-gram phrase matching
+2. Jaccard similarity
+3. Cosine similarity
+4. Document fingerprinting / winnowing
+5. Matching-span detection
+
+The student's submitted thesis must be compared against previously stored and approved theses.
+
+Create modules such as:
+
+src/lib/plagiarism/
+tokenize.ts
+ngrams.ts
+jaccard.ts
+cosine.ts
+fingerprint.ts
+winnowing.ts
+matching-spans.ts
+score.ts
+repository-search.ts
+types.ts
+
+# FINGERPRINTING
+
+Implement a proper educational text fingerprinting algorithm.
+
+Recommended approach:
+
+* tokenize normalized words
+* generate word n-grams
+* hash n-grams
+* apply a winnowing window
+* select representative fingerprints
+* compare fingerprint sets
+
+Document the algorithm clearly in:
+
+docs/plagiarism-engine.md
+
+The implementation should be readable enough for a final-year Computer Science student to explain during project defence.
+
+# SIMILARITY SCORING
+
+Do not simply average random algorithm percentages.
+
+The primary overall similarity score should represent the approximate percentage of eligible submitted text covered by meaningful matching spans.
+
+General idea:
+
+matched eligible words / total eligible words * 100
+
+Deduplicate overlapping matches before counting.
+
+Then use n-gram, fingerprint, Jaccard and cosine calculations to determine whether a candidate passage qualifies as a meaningful match.
+
+Maintain separate scores for:
+
+* Repository similarity
+* Web similarity
+* Academic-source similarity
+* Overall similarity
+
+The overall score should not double-count the same submitted words simply because multiple sources contain the same passage.
+
+Provide a deterministic, testable implementation.
+
+# EXTERNAL WEB SEARCH
+
+The purpose of external search is candidate-source discovery.
+
+Do not submit every sentence in the thesis to the search API.
+
+That would waste free API credits.
+
+Create a query-selection algorithm.
+
+Select distinctive passages such as:
+
+* sufficiently long sentences
+* 8-14 distinctive words
+* sentences with uncommon terms
+* passages not dominated by citations
+* passages not already fully explained by an internal repository match
+
+Default maximum:
+
+15 web searches per thesis.
+
+Make this configurable.
+
+Create:
+
+src/lib/search/query-selector.ts
+
+# TAVILY
+
+Use Tavily as the default web-search provider.
+
+Use its search API server side.
+
+Search for distinctive phrases.
+
+Use reasonable search depth to conserve free credits.
+
+Use the returned URLs, titles and snippets to discover candidate pages.
+
+When necessary, fetch publicly accessible HTML pages server side and extract readable text.
+
+Use packages such as Cheerio or Readability where appropriate.
+
+Respect:
+
+* timeouts
+* redirects
+* content-type checking
+* size limits
+* errors
+* unavailable pages
+
+Do not bypass:
+
+* authentication
+* paywalls
+* CAPTCHAs
+* restricted content
+
+If content cannot legally or technically be retrieved, retain the source metadata and state that full-text verification was unavailable.
+
+# BRAVE SEARCH
+
+Implement Brave behind the same web search interface.
+
+It should only be used when:
+
+WEB_SEARCH_PROVIDER=brave
+
+Do not make a Brave key mandatory.
+
+The system must boot and work without one.
+
+If Brave is selected but no key exists, display a useful configuration error.
+
+# OPENALEX
+
+Use OpenAlex for academic source discovery.
+
+Create:
+
+src/lib/search/academic/openalex.ts
+
+Search using:
+
+* thesis title keywords
+* distinctive thesis sentences
+* topic keywords
+
+Prefer open-access works where possible.
+
+Retrieve useful fields including:
+
+* title
+* authors
+* DOI
+* publication year
+* source/journal
+* abstract where available
+* open-access status
+* landing page
+* available open-access PDF URL
+
+Use:
+
+https://api.openalex.org
+
+Use OPENALEX_API_KEY if configured.
+
+Never attempt to bypass publisher paywalls.
+
+If OpenAlex provides a legal open-access PDF URL, the application may fetch and extract the PDF for comparison.
+
+If only an abstract is available, compare against the abstract but label the source coverage appropriately.
+
+For example:
+
+"Comparison based on available abstract"
+
+instead of pretending the complete article was checked.
+
+Default maximum:
+
+10 OpenAlex search requests per thesis.
+
+# CANDIDATE SOURCE COMPARISON
+
+Search APIs find candidate sources.
+
+They do NOT determine the final plagiarism percentage.
+
+For each candidate source:
+
+1. obtain available source text
+2. normalize it
+3. chunk it
+4. compare it with the submitted thesis
+5. detect meaningful matched spans
+6. calculate source similarity
+7. store only useful match information
+
+Avoid storing entire third-party web pages unnecessarily.
+
+Store:
+
+* source metadata
+* URL
+* short matching excerpts
+* similarity information
+
+# DEEPSEEK INTEGRATION
+
+Create:
+
+src/lib/ai/deepseek.ts
+
+Use the official OpenAI-compatible DeepSeek API endpoint.
+
+Base URL:
+
+https://api.deepseek.com
+
+Default model:
+
+deepseek-v4-flash
+
+Use the API server side.
+
+Do NOT send an entire thesis to DeepSeek unless absolutely necessary.
+
+That wastes tokens and increases cost.
+
+Only send meaningful flagged passages.
+
+Batch them where appropriate.
+
+Maximum default:
+
+20 strongest matches per scan.
+
+This should be configurable.
+
+DeepSeek should NOT calculate the overall similarity score.
+
+DeepSeek should analyse a match after the deterministic engine has identified it.
+
+Ask DeepSeek to classify a match into categories such as:
+
+* likely direct quotation
+* likely insufficient paraphrasing
+* common academic phrasing
+* likely properly cited
+* likely uncited overlap
+* uncertain/requires human review
+
+DeepSeek should return structured JSON.
+
+Validate the response with Zod.
+
+DeepSeek should provide:
+
+* classification
+* short explanation
+* citation concern
+* recommendation
+
+Its recommendations should encourage:
+
+* proper citation
+* quotation where appropriate
+* genuine rewriting in the student's own understanding
+* checking original sources
+
+Do not build a "bypass plagiarism detection" or "humanizer" feature.
+
+The prevention assistant must improve academic integrity, not conceal copied work.
+
+# SCAN PIPELINE
+
+Implement a clear scan pipeline.
+
+When a user starts a scan:
+
+1. Validate user authorization
+2. Validate thesis/document
+3. Create plagiarism_scan record
+4. Extract document text if not already extracted
+5. Preprocess and chunk text
+6. Compare against approved internal repository documents
+7. Select high-value external search queries
+8. Search the public web through configured provider
+9. Search OpenAlex
+10. Retrieve legally accessible candidate text
+11. Compare candidate source content locally
+12. Merge matched spans
+13. Remove duplicate overlap
+14. Calculate repository score
+15. Calculate web score
+16. Calculate academic score
+17. Calculate overall score
+18. Send strongest meaningful matches to DeepSeek
+19. Save AI classifications
+20. Mark scan as completed
+21. Generate report-ready data
+
+If one external provider fails, do not necessarily fail the complete scan.
+
+Complete with available sources and show warnings.
+
+# PROGRESS UI
+
+When scanning, users should see understandable progress.
+
+Examples:
+
+Preparing document
+Extracting text
+Checking thesis repository
+Searching public web
+Searching academic sources
+Comparing possible matches
+Analysing flagged passages
+Preparing report
+Complete
+
+Do not show fake exact percentages if the backend cannot know exact completion.
+
+A step-based progress indicator is acceptable.
+
+# REPORT PAGE
+
+The report page is a major feature.
+
+Route:
+
+/reports/[id]
+
+At the top show:
+
+* Thesis title
+* Student
+* Department
+* Date checked
+* Overall similarity score
+
+Display score clearly without making the whole page alarming.
+
+Provide score cards:
+
+Overall Similarity
+Repository
+Public Web
+Academic Sources
+Sources Found
+Matching Passages
+
+Create a clean similarity visualization.
+
+Then display matched sources.
+
+Each source card should show:
+
+* source title
+* source type
+* source URL if available
+* author
+* year
+* DOI where available
+* similarity contribution
+* number of matching passages
+
+Then show passage comparisons.
+
+Use a side-by-side or stacked comparison:
+
+Submitted passage
+
+vs.
+
+Matching source passage
+
+Highlight meaningful overlapping text.
+
+Also show:
+
+* match strength
+* whether quotation was detected
+* whether citation was detected
+* DeepSeek classification
+* DeepSeek explanation
+* recommendation
+
+Add filters:
+
+All
+Repository
+Web
+Academic
+Likely citation issue
+Excluded matches
+
+# DOWNLOADABLE REPORT
+
+Generate a professional PDF similarity report.
+
+The report should contain:
+
+* Application/system name
+* Thesis title
+* Student name
+* Matric number
+* Department
+* Faculty
+* Date
+* Overall similarity
+* Repository similarity
+* Web similarity
+* Academic similarity
+* Summary
+* Source list
+* Important matches
+* AI academic-integrity guidance
+* Disclaimer
+
+Do not attempt to include hundreds of full source passages.
+
+Use concise excerpts.
+
+The PDF should look professional and academic.
+
+# REPOSITORY
+
+Create a proper thesis repository.
+
+Route:
+
+/repository
+
+Features:
+
+* Search by title
+* Search by author/student
+* Search by keyword
+* Filter by department
+* Filter by faculty
+* Filter by academic year
+* Sort newest/oldest/title
+* Pagination
+
+Repository cards/list items should display:
+
+* Title
+* Student
+* Department
+* Year
+* Abstract preview
+* Keywords
+* Approval status
+
+Only APPROVED documents should appear in the general repository.
+
+Repository detail route:
+
+/repository/[id]
+
+Show:
+
+* title
+* author
+* department
+* faculty
+* year
+* abstract
+* keywords
+* supervisor if available
+* document metadata
+
+Access to the full file must respect permissions.
+
+# DASHBOARD
+
+Create different dashboard experiences based on role.
+
+## Student dashboard
+
+Show:
+
+* total theses
+* latest submission status
+* latest similarity score
+* scans used recently
+* recent activity
+
+Primary actions:
+
+Upload Thesis
+Run Similarity Check
+View Reports
+Browse Repository
+
+## Supervisor dashboard
+
+Show:
+
+* pending reviews
+* assigned students
+* recently submitted theses
+* high-similarity reports requiring attention
+
+## Admin dashboard
+
+Show:
+
+* total users
+* total theses
+* approved theses
+* scans performed
+* average similarity
+* submissions awaiting review
+
+Include simple charts only if they add useful information.
+
+Do not clutter the dashboard.
+
+# ADMIN SETTINGS
+
+Implement:
+
+/admin/settings
+
+Allow admin to change:
+
+Similarity warning threshold
+High similarity threshold
+Maximum upload size
+Maximum scans per user per day
+Enable/disable external web search
+Enable/disable academic search
+Allow/disallow resubmissions
+
+Validate all settings.
+
+# SCAN COST CONTROL
+
+The system must deliberately conserve third-party API usage.
+
+Create limits.
+
+For development defaults:
+
+15 Tavily/Brave searches per scan
+10 OpenAlex searches per scan
+20 DeepSeek match analyses per scan
+
+Do not make external API calls for passages that are:
+
+* too short
+* common
+* mostly references
+* mostly quotations
+* already strongly matched internally unless additional checking is justified
+
+Deduplicate identical search queries.
+
+Cache safe reusable results where appropriate and permitted.
+
+Implement exponential backoff for temporary errors.
+
+Handle rate-limit responses.
+
+# UI/UX REQUIREMENTS
+
+The website must look professionally designed but extremely easy to use.
+
+The target users include students and lecturers who may not be highly technical.
+
+The interface should feel calm, academic, clean and trustworthy.
+
+Do NOT create an overly futuristic "AI" interface.
+
+Do NOT use excessive gradients.
+
+Do NOT clutter pages.
+
+Use:
+
+* generous whitespace
+* clean typography
+* consistent spacing
+* clear headings
+* large readable buttons
+* obvious navigation
+* useful icons
+* cards used sparingly
+* strong hierarchy
+* subtle shadows/borders
+* clear success/error/warning states
+
+Use a restrained professional palette.
+
+For example:
+
+Primary: blue/indigo
+Success: green
+Warning: amber
+Danger: red
+Background: very light gray/slate
+Cards: white
+
+Make the design cohesive.
+
+# LANDING PAGE
+
+Create a polished landing page.
+
+Header:
+
+Logo
+Repository
+About
+Login
+Get Started
+
+Hero:
+
+"Protect Academic Integrity.
+Preserve Research."
+
+Supporting text explaining that ThesisGuard combines a digital thesis repository with automated similarity analysis.
+
+Primary CTA:
+
+Check Your Thesis
+
+Secondary CTA:
+
+Explore Repository
+
+Add a simple product preview or abstract dashboard visual.
+
+Sections:
+
+* How it works
+* Repository
+* Similarity detection
+* Academic source checking
+* Prevention guidance
+* Benefits to students
+* Benefits to supervisors
+* Footer
+
+Keep it concise.
+
+# NAVIGATION
+
+Authenticated desktop:
+
+Use either a clean left sidebar or compact dashboard navigation.
+
+Student navigation:
+
+Dashboard
+My Theses
+Similarity Checks
+Repository
+Profile
+
+Supervisor:
+
+Dashboard
+Submissions
+Reports
+Repository
+Profile
+
+Admin:
+
+Dashboard
+Users
+Theses
+Scans
+Departments
+Settings
+
+On mobile use a responsive drawer.
+
+# MATERIAL UI AND TAILWIND
+
+Use Tailwind primarily for:
+
+* layout
+* spacing
+* responsive design
+* page structure
+
+Use Material UI where appropriate for:
+
+* dialogs
+* tables
+* menus
+* tooltips
+* progress components
+* tabs
+* form controls where beneficial
+* data-heavy components
+
+Configure MUI correctly for Next.js App Router.
+
+Do not create conflicting visual systems.
+
+Create one consistent theme.
+
+# RESPONSIVENESS
+
+Support:
+
+* desktop
+* tablet
+* mobile
+
+Important pages such as upload, report and dashboard must remain usable on smaller screens.
+
+# ACCESSIBILITY
+
+Implement:
+
+* semantic HTML
+* keyboard accessibility
+* proper labels
+* visible focus states
+* adequate colour contrast
+* aria attributes where necessary
+
+# LOADING AND ERROR STATES
+
+Every network-dependent page should have:
+
+* loading state
+* empty state
+* error state
+
+Use skeletons where useful.
+
+Use friendly error messages.
+
+Do not expose raw stack traces to users.
+
+# SECURITY
+
+Implement basic production-quality protections.
+
+At minimum:
+
+* Supabase Auth
+* RLS
+* server-side authorization
+* private storage
+* signed file URLs
+* Zod request validation
+* file type validation
+* file size validation
+* sanitized filenames
+* secure environment variables
+* no secret keys in client code
+* safe handling of external URLs
+* request timeouts
+* protection against SSRF where external URLs are fetched
+* restrict fetching localhost/private network addresses
+* escape untrusted OpenAlex/web-source content before display
+
+Do not use `dangerouslySetInnerHTML` unless absolutely necessary and sanitized.
+
+# SSRF PROTECTION
+
+This is important because source URLs may come from web search.
+
+Before fetching an external URL:
+
+* require http/https
+* block localhost
+* block 127.0.0.0/8
+* block private IPv4 ranges
+* block link-local addresses
+* block private IPv6 ranges
+* limit redirects
+* limit response size
+* enforce timeout
+
+Create a reusable safe-fetch utility.
+
+# API ROUTES / SERVER ACTIONS
+
+Create clean endpoints or server actions.
+
+Possible endpoints:
+
+POST /api/theses
+POST /api/theses/[id]/scan
+GET /api/scans/[id]
+GET /api/reports/[id]/pdf
+GET /api/repository/search
+
+Do not expose external provider keys.
+
+Use service functions underneath the routes.
+
+# PROJECT STRUCTURE
+
+Aim for a clean structure similar to:
+
+src/
+app/
+(public)/
+(auth)/
+(dashboard)/
+admin/
+supervisor/
+api/
+
+components/
+ui/
+layout/
+dashboard/
+thesis/
+scan/
+report/
+repository/
+
+lib/
+ai/
+deepseek.ts
+
+```
+auth/
+
+documents/
+  extract-document.ts
+  extract-pdf.ts
+  extract-docx.ts
+  normalize-text.ts
+  chunk-text.ts
+
+plagiarism/
+  tokenize.ts
+  ngrams.ts
+  jaccard.ts
+  cosine.ts
+  fingerprint.ts
+  winnowing.ts
+  matching-spans.ts
+  score.ts
+  repository-search.ts
+  types.ts
+
+search/
+  query-selector.ts
+  web/
+    provider.ts
+    tavily.ts
+    brave.ts
+    types.ts
+  academic/
+    openalex.ts
+
+reports/
+
+security/
+  safe-fetch.ts
+
+supabase/
+  client.ts
+  server.ts
+  admin.ts
+
+validations/
+```
+
+types/
+
+supabase/
+migrations/
+seed.sql
+
+docs/
+architecture.md
+database.md
+plagiarism-engine.md
+api-setup.md
+deployment.md
+
+# TESTING
+
+Write unit tests for important deterministic algorithms.
+
+At minimum:
+
+* text normalization
+* tokenization
+* n-gram creation
+* Jaccard similarity
+* cosine similarity
+* fingerprinting
+* winnowing
+* matching-span merge
+* duplicate-overlap removal
+* overall similarity calculation
+* query selector
+
+Add tests verifying that:
+
+* identical passages score highly
+* unrelated passages score low
+* overlapping matches are not double-counted
+* bibliography matches can be excluded
+* properly excluded matches do not increase overall score
+
+Mock external providers for tests.
+
+Do not use actual paid API calls in automated tests.
+
+# DEMO DATA
+
+Create optional seed data containing:
+
+* faculties
+* departments
+* demo student profile information where appropriate
+* a few sample thesis metadata entries
+* system settings
+
+Do not store actual passwords in the seed.
+
+Document how demo users can be created through Supabase Auth.
+
+# README
+
+Create an excellent README.md.
+
+It must explain:
+
+1. Project overview
+2. Features
+3. Technology stack
+4. Architecture
+5. Requirements
+6. Installation
+7. Environment variables
+8. Supabase setup
+9. How to create the storage bucket
+10. How to run migrations
+11. How to get a Tavily API key
+12. How to get an OpenAlex API key
+13. How to configure optional Brave Search
+14. How to configure DeepSeek
+15. Running locally
+16. Running tests
+17. Building for production
+18. Deployment to Vercel
+19. Similarity algorithm explanation
+20. Known limitations
+
+# DOCUMENTATION FOR PROJECT DEFENCE
+
+Create:
+
+docs/architecture.md
+
+Explain:
+
+Presentation layer
+Application layer
+Database layer
+External integrations
+
+Create:
+
+docs/database.md
+
+Describe tables and relationships.
+
+Create:
+
+docs/plagiarism-engine.md
+
+Explain in straightforward academic language:
+
+* preprocessing
+* tokenization
+* n-grams
+* Jaccard similarity
+* cosine similarity
+* document fingerprinting
+* winnowing
+* source discovery
+* matched-span aggregation
+* similarity percentage calculation
+* DeepSeek's limited role
+
+Make this detailed enough for a Computer Science final-year project defence.
+
+Create:
+
+docs/api-setup.md
+
+Explain how to obtain and configure:
+
+* DeepSeek
+* Tavily
+* OpenAlex
+* optional Brave
+
+Do not place actual API keys in documentation.
+
+# KNOWN LIMITATIONS
+
+Explicitly state in the application and documentation that this system:
+
+* cannot access every private academic database
+* cannot access all paywalled publications
+* cannot reproduce Turnitin's proprietary student-paper database
+* relies on accessible web and academic sources
+* may not detect every sophisticated paraphrase
+* produces similarity indicators, not automatic academic-misconduct verdicts
+
+This honesty is important.
+
+# PERFORMANCE
+
+Avoid O(n²) comparison against every complete thesis where reasonably possible.
+
+Use:
+
+* chunking
+* fingerprints
+* hashes
+* database filtering
+* candidate selection
+
+Repository comparison should first identify candidates, then perform deeper comparisons.
+
+Do not repeatedly parse the same approved thesis on every scan.
+
+Store normalized chunks and fingerprints.
+
+# REPORT ACCURACY
+
+Never fabricate source text.
+
+Never create fake source URLs.
+
+Never allow DeepSeek to invent sources.
+
+Every external source shown in a report must originate from:
+
+* repository data
+* Tavily/Brave result
+* OpenAlex result
+* an actual successfully retrieved public document
+
+If source content could not be retrieved, say so.
+
+# FAILURE HANDLING
+
+Handle:
+
+* invalid PDF
+* invalid DOCX
+* encrypted PDF
+* empty document
+* oversized file
+* Supabase unavailable
+* Tavily quota exceeded
+* OpenAlex quota exceeded
+* Brave not configured
+* DeepSeek unavailable
+* external page inaccessible
+* malformed external response
+* scan already running
+
+Show useful user-facing errors.
+
+# SCAN RESILIENCE
+
+A DeepSeek failure must not destroy the deterministic plagiarism report.
+
+If DeepSeek fails:
+
+* preserve the calculated similarity result
+* mark AI guidance unavailable
+* allow retrying only the AI-analysis stage
+
+If Tavily fails:
+
+* continue repository and OpenAlex analysis
+
+If OpenAlex fails:
+
+* continue repository and web analysis
+
+# DEVELOPMENT ORDER
+
+Work in this order:
+
+PHASE 1
+Inspect environment and scaffold the Next.js project.
+
+PHASE 2
+Install dependencies and configure Tailwind/MUI.
+
+PHASE 3
+Create Supabase schema, migrations, types and RLS.
+
+PHASE 4
+Implement authentication and role authorization.
+
+PHASE 5
+Build layouts and dashboards.
+
+PHASE 6
+Implement thesis upload and repository.
+
+PHASE 7
+Implement document extraction and preprocessing.
+
+PHASE 8
+Implement deterministic plagiarism algorithms.
+
+PHASE 9
+Implement repository comparison.
+
+PHASE 10
+Implement Tavily and optional Brave search adapters.
+
+PHASE 11
+Implement OpenAlex integration.
+
+PHASE 12
+Implement DeepSeek structured match analysis.
+
+PHASE 13
+Implement complete scan orchestration.
+
+PHASE 14
+Build report UI and downloadable PDF.
+
+PHASE 15
+Build supervisor/admin functionality.
+
+PHASE 16
+Add tests, documentation, seed data and configuration.
+
+PHASE 17
+Run:
+
+npm run lint
+
+npm run test
+
+npm run build
+
+Also run TypeScript type checking if not already included.
+
+Fix errors.
+
+# IMPORTANT WORKING STYLE
+
+Do not only tell me what commands I should run.
+
+Run commands yourself where your environment permits.
+
+Do not stop after generating pseudocode.
+
+Create the actual files.
+
+Do not leave core features as TODO comments.
+
+If an external API key is not currently available, still implement the integration completely and test it with mocks.
+
+Use placeholder environment-variable references, never fake API keys.
+
+If Supabase credentials are not available yet, still build the Supabase integration and SQL migrations fully.
+
+The application should compile without secrets and show an understandable configuration state rather than crashing wherever possible.
+
+# FINAL VERIFICATION
+
+Before considering the project complete:
+
+1. Inspect all major routes.
+2. Confirm role protection.
+3. Confirm thesis upload validation.
+4. Confirm PDF/DOCX extraction.
+5. Confirm repository comparison.
+6. Confirm query-selection logic.
+7. Confirm Tavily provider.
+8. Confirm optional Brave provider.
+9. Confirm OpenAlex provider.
+10. Confirm DeepSeek integration.
+11. Confirm deterministic similarity scoring.
+12. Confirm reports.
+13. Confirm database migration SQL.
+14. Confirm RLS.
+15. Confirm responsive UI.
+16. Confirm error/loading states.
+17. Confirm tests.
+18. Confirm lint.
+19. Confirm TypeScript.
+20. Confirm production build.
+
+Fix problems found during verification.
+
+Finally provide me with:
+
+* a concise summary of what was built
+* the final directory structure
+* commands to run locally
+* required environment variables
+* Supabase setup steps
+* any manual setup that genuinely cannot be automated
+* test results
+* build result
+* known limitations
+
+Build this as a polished, defendable Computer Science final-year project, not as a toy demo.
