@@ -67,7 +67,11 @@ beforeEach(() => {
   m.remove.mockResolvedValue({ error: null });
   m.create.mockResolvedValue(id);
   m.sign.mockResolvedValue({
-    data: { signedUrl: "private", token: "private" },
+    data: {
+      signedUrl:
+        "https://example.supabase.co/storage/v1/object/upload/sign/theses/private",
+      token: "private",
+    },
     error: null,
   });
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
@@ -133,4 +137,12 @@ it("uses the direct hosted storage endpoint and preserves custom/local endpoints
   expect(resumableEndpoint("https://custom.example.org")).toBe(
     "https://custom.example.org/storage/v1/upload/resumable",
   );
+});
+it("prefers the signed URL origin so token and upload endpoint stay on the same project", () => {
+  expect(
+    resumableEndpoint(
+      "https://wrong.supabase.co",
+      "https://right.supabase.co/storage/v1/object/upload/sign/theses/file?token=private",
+    ),
+  ).toBe("https://right.storage.supabase.co/storage/v1/upload/resumable");
 });
