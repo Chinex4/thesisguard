@@ -3,24 +3,65 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "worker": "NODE_OPTIONS=--conditions=react-server tsx scripts/worker.ts",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "demo": "NODE_OPTIONS=--conditions=react-server tsx scripts/demo.ts",
+    "cleanup:staging": "NODE_OPTIONS=--conditions=react-server tsx scripts/cleanup-staging.ts",
+    "format": "prettier --write src tests scripts/*.ts *.ts *.mts",
+    "format:check": "prettier --check src tests scripts/*.ts *.ts *.mts",
+    "dev:turbo": "next dev"
   },
   "dependencies": {
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@hookform/resolvers": "5.9.1",
+    "@mui/material": "9.4.0",
+    "@mui/material-nextjs": "9.4.0",
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.116.0",
+    "cheerio": "1.2.0",
+    "ipaddr.js": "2.5.0",
+    "lucide-react": "1.42.0",
+    "mammoth": "1.12.2",
     "next": "16.3.4",
+    "pdf-lib": "1.17.1",
+    "pdf-parse": "2.4.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-hook-form": "7.87.0",
+    "server-only": "0.0.1",
+    "tus-js-client": "4.3.1",
+    "undici": "8.10.2",
+    "zod": "4.5.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "24.13.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "agent-browser": "0.37.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "jszip": "3.10.1",
+    "prettier": "3.9.6",
+    "supabase": "2.117.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "4.23.13",
+    "typescript": "^5",
+    "vitest": "5.0.0"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25"
   }
 }
