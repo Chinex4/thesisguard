@@ -50,6 +50,7 @@ export interface Thesis {
 export interface Scan {
   id: string;
   thesis_id: string;
+  requested_by?: string;
   status: ScanStatus;
   overall_similarity: number;
   repository_similarity: number;
@@ -62,6 +63,9 @@ export interface Scan {
   warnings: string[];
   ai_status: string;
   created_at: string;
+  started_at?: string | null;
+  heartbeat_at?: string | null;
+  attempts?: number;
   completed_at: string | null;
   error_message: string | null;
   thesis?: Thesis;
