@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./responsive.css";
 import { Providers } from "@/components/providers";
+
 export const metadata: Metadata = {
   title: {
     default: "ThesisGuard — Preserve research. Protect integrity.",
@@ -9,6 +11,7 @@ export const metadata: Metadata = {
   description:
     "An academic thesis repository with transparent similarity analysis and responsible citation guidance.",
 };
+
 export default function RootLayout({
   children,
 }: {
