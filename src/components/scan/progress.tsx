@@ -9,6 +9,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import type { Scan } from "@/types";
+
 const stages = [
   "QUEUED",
   "EXTRACTING",
@@ -19,19 +20,39 @@ const stages = [
   "AI_ANALYSIS",
   "COMPLETED",
 ];
+
 const labels = [
-  "Waiting for scan worker",
+  "Starting similarity check",
   "Preparing document",
   "Checking thesis repository",
   "Searching public web",
   "Searching academic sources",
   "Comparing possible matches",
-  "Analysing flagged passages",
+  "Finalising report",
   "Report ready",
 ];
+
 export function ScanProgress({ initial }: { initial: Scan }) {
   const [scan, setScan] = useState(initial),
     [error, setError] = useState("");
+
+  // Vercel does not keep a permanent Node worker alive. When this page sees a
+  // queued scan, ask a Vercel Function to claim it and continue processing in
+  // `after()`. The database claim makes this safe if React retries the request.
+  useEffect(() => {
+    if (scan.status !== "QUEUED") return;
+    const controller = new AbortController();
+    void fetch("/api/scans/" + initial.id + "/process", {
+      method: "POST",
+      credentials: "same-origin",
+      signal: controller.signal,
+    }).catch(() => {
+      if (!controller.signal.aborted)
+        setError("The scan could not be started yet. We will keep checking.");
+    });
+    return () => controller.abort();
+  }, [initial.id, scan.status]);
+
   useEffect(() => {
     if (["COMPLETED", "FAILED"].includes(scan.status)) return;
     const controller = new AbortController();
@@ -50,12 +71,13 @@ export function ScanProgress({ initial }: { initial: Scan }) {
       }
       if (!controller.signal.aborted) timer = setTimeout(poll, 2500);
     }
-    timer = setTimeout(poll, 2500);
+    timer = setTimeout(poll, 1500);
     return () => {
       controller.abort();
       clearTimeout(timer);
     };
   }, [initial.id, scan.status]);
+
   return (
     <div className="panel max-w-3xl">
       <div className="flex gap-4 items-center mb-7">
@@ -92,8 +114,7 @@ export function ScanProgress({ initial }: { initial: Scan }) {
       )}
       {scan.status === "QUEUED" && (
         <p className="text-xs mt-5">
-          The scan worker will pick up your request. If it remains queued, ask
-          your administrator to check that the worker is running.
+          Your scan is queued and will start automatically on this deployment.
         </p>
       )}
       {scan.status === "COMPLETED" && (
