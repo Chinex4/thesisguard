@@ -33,8 +33,7 @@ export async function authAction(
             "Registration could not be completed. Check your details or try signing in.",
         };
       return {
-        success:
-          "Account request received. Check your email to confirm your account, then sign in.",
+        success: "Account created successfully. You can sign in now.",
       };
     }
     if (mode === "forgot-password") {
@@ -53,8 +52,7 @@ export async function authAction(
     const { error } = await db.auth.signInWithPassword({ email, password });
     if (error)
       return {
-        error:
-          "Email or password is incorrect, or your email has not been confirmed.",
+        error: "Email or password is incorrect.",
       };
   } catch (e) {
     return {
