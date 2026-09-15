@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdf-parse", "mammoth", "undici"],
+  serverExternalPackages: [
+    "pdf-parse",
+    "@napi-rs/canvas",
+    "mammoth",
+    "undici",
+  ],
   experimental: {
     proxyClientMaxBodySize: "22mb",
     serverActions: { bodySizeLimit: "1mb" },
