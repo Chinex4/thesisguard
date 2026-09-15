@@ -25,16 +25,10 @@ function storageError(error: {
   });
 }
 
-export function resumableEndpoint(projectUrl: string, signedUrl?: string) {
-  const base = new URL(projectUrl);
-  // Prefer the signed URL's origin when available so the upload token and TUS
-  // destination can never accidentally point at different Supabase projects.
-  const url = signedUrl ? new URL(signedUrl, base) : base;
-
-  // Hosted Supabase direct storage domain; keep custom/local origins unchanged.
+export function resumableEndpoint(projectUrl: string) {
+  const url = new URL(projectUrl);
   if (/^[a-z0-9-]+\.supabase\.co$/.test(url.hostname))
     url.hostname = url.hostname.replace(".supabase.co", ".storage.supabase.co");
-
   url.pathname = "/storage/v1/upload/resumable";
   url.search = "";
   url.hash = "";
@@ -74,22 +68,19 @@ export async function beginUpload(input: unknown, user: Profile) {
       { code: "TOO_LARGE" },
     );
 
-  const path =
-    user.id + "/staging/" + randomUUID() + "/" + sanitizeFilename(body.name);
-  const { data, error } = await db.storage
-    .from("theses")
-    .createSignedUploadUrl(path, { upsert: false });
-  if (error) throw storageError(error);
-
   const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!projectUrl)
     throw new HttpError(503, "Supabase project URL is unavailable.");
 
+  const path =
+    user.id + "/staging/" + randomUUID() + "/" + sanitizeFilename(body.name);
+
+  // The browser authenticates the TUS request with the student's Supabase
+  // access token. Storage RLS restricts writes to <user-id>/staging/... only.
+  // This avoids the signed-upload JWS incompatibility affecting resumable uploads.
   return {
     path,
-    signedUrl: data.signedUrl,
-    token: data.token,
-    endpoint: resumableEndpoint(projectUrl, data.signedUrl),
+    endpoint: resumableEndpoint(projectUrl),
   };
 }
 
@@ -130,7 +121,6 @@ export async function finishUpload(input: unknown, user: Profile) {
   if (existing) {
     if (existing.student_id !== user.id)
       throw new HttpError(403, "This upload does not belong to your account.");
-    // An acknowledged or lost-response retry always returns the original submission.
     await db.storage.from("theses").remove([body.path]);
     return existing.id;
   }
@@ -152,7 +142,6 @@ export async function finishUpload(input: unknown, user: Profile) {
     new File([file], body.path.split("/").at(-1)!, { type: file.type }),
   );
 
-  // Preserve staging on failed finalization so retries do not transfer the PDF again.
   const result = await createThesis(form, user, id);
   await db.storage.from("theses").remove([body.path]);
   return result;
