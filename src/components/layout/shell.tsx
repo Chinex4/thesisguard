@@ -104,7 +104,7 @@ export function Shell({
       <Drawer
         open={open}
         onClose={() => setOpen(false)}
-        PaperProps={{ className: "mobile-drawer-paper" }}
+        slotProps={{ paper: { className: "mobile-drawer-paper" } }}
       >
         <div className="mobile-drawer-content">{nav}</div>
       </Drawer>
