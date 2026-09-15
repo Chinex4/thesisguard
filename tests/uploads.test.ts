@@ -1,6 +1,12 @@
 import { beforeEach, it, expect, vi } from "vitest";
 import type { UploadOptions } from "tus-js-client";
-const state = vi.hoisted(() => ({ options: {} as UploadOptions, starts: 0 }));
+
+const state = vi.hoisted(() => ({
+  options: {} as UploadOptions,
+  starts: 0,
+  getSession: vi.fn(),
+}));
+
 vi.mock("tus-js-client", () => ({
   Upload: class {
     options: UploadOptions;
@@ -14,25 +20,42 @@ vi.mock("tus-js-client", () => ({
     async abort() {}
   },
 }));
+
+vi.mock("@/lib/supabase/client", () => ({
+  browserDb: () => ({
+    auth: { getSession: state.getSession },
+  }),
+}));
+
 import { PdfTransfer, validatePdf, uploadApi } from "@/lib/uploads/client";
 import {
   uploadFailure,
   logUploadFailure,
   UploadError,
 } from "@/lib/uploads/errors";
+
 const file = new File(["%PDF-1.7 test document"], "thesis.pdf", {
   type: "application/pdf",
 });
 const ticket = {
   path: "owner/staging/id/thesis.pdf",
-  token: "secret-test-token",
   endpoint: "https://storage.example.test/storage/v1/upload/resumable",
 };
+
 beforeEach(() => {
   state.starts = 0;
+  state.options = {} as UploadOptions;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-test-key");
+  state.getSession.mockReset();
+  state.getSession.mockResolvedValue({
+    data: { session: { access_token: "user-access-token" } },
+    error: null,
+  });
 });
+
 it("accepts PDF bytes and rejects renamed, empty, DOCX and oversized files", async () => {
   await expect(validatePdf(file, 20)).resolves.toBeUndefined();
   for (const invalid of [
@@ -47,13 +70,21 @@ it("accepts PDF bytes and rejects renamed, empty, DOCX and oversized files", asy
     code: "TOO_LARGE",
   });
 });
-it("uses signed resumable chunks and only reports success after Storage acknowledges it", async () => {
+
+it("uses the authenticated session for resumable chunks and reports success only after Storage acknowledges it", async () => {
   const transfer = new PdfTransfer(file, ticket),
     progress = vi.fn();
   const promise = transfer.start(progress);
+
+  await vi.waitFor(() => expect(state.starts).toBe(1));
   expect(state.options.chunkSize).toBe(6 * 1024 * 1024);
-  expect(state.options.headers).toEqual({ "x-signature": ticket.token });
+  expect(state.options.headers).toEqual({
+    authorization: "Bearer user-access-token",
+    apikey: "anon-test-key",
+    "x-upsert": "false",
+  });
   expect(state.options.storeFingerprintForResuming).toBe(false);
+
   state.options.onProgress!(file.size, file.size);
   expect(progress).toHaveBeenLastCalledWith(99);
   expect(transfer.uploaded).toBe(false);
@@ -62,17 +93,36 @@ it("uses signed resumable chunks and only reports success after Storage acknowle
   expect(transfer.uploaded).toBe(true);
   expect(progress).toHaveBeenLastCalledWith(100);
 });
-it("retains the transfer for retry and does not mark a network failure successful", async () => {
+
+it("rejects before Storage when the browser session is unavailable", async () => {
+  state.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+  await expect(new PdfTransfer(file, ticket).start(vi.fn())).rejects.toMatchObject({
+    code: "AUTH",
+  });
+  expect(state.starts).toBe(0);
+});
+
+it("retains the transfer for retry and refreshes authentication", async () => {
   const transfer = new PdfTransfer(file, ticket);
   const first = transfer.start(vi.fn());
+  await vi.waitFor(() => expect(state.starts).toBe(1));
   state.options.onError!(new Error("secret URL must never be surfaced"));
   await expect(first).rejects.toMatchObject({ code: "NETWORK" });
   expect(transfer.uploaded).toBe(false);
+
+  state.getSession.mockResolvedValueOnce({
+    data: { session: { access_token: "fresh-user-token" } },
+    error: null,
+  });
   const retry = transfer.start(vi.fn());
+  await vi.waitFor(() => expect(state.starts).toBe(2));
+  expect(state.options.headers).toMatchObject({
+    authorization: "Bearer fresh-user-token",
+  });
   state.options.onSuccess!({ lastResponse: null! });
   await retry;
-  expect(state.starts).toBe(2);
 });
+
 it("cancellation settles the pending transfer with a distinct error", async () => {
   const transfer = new PdfTransfer(file, ticket),
     promise = transfer.start(vi.fn());
@@ -82,6 +132,7 @@ it("cancellation settles the pending transfer with a distinct error", async () =
   await transfer.cancel();
   await assertion;
 });
+
 it.each([
   [401, {}, false, "AUTH"],
   [403, {}, true, "PERMISSION"],
@@ -97,6 +148,7 @@ it.each([
     expect(uploadFailure(status, body, storage).code).toBe(code);
   },
 );
+
 it("handles an expired app session and malformed API responses", async () => {
   vi.stubGlobal(
     "fetch",
@@ -118,6 +170,7 @@ it("handles an expired app session and malformed API responses", async () => {
     code: "SERVER",
   });
 });
+
 it("development diagnostics contain only stage, code and HTTP status", () => {
   vi.stubEnv("NODE_ENV", "development");
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -127,5 +180,4 @@ it("development diagnostics contain only stage, code and HTTP status", () => {
     code: "NETWORK",
     status: 0,
   });
-  vi.unstubAllEnvs();
 });
