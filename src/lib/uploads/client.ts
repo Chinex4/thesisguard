@@ -1,10 +1,12 @@
 import { Upload } from "tus-js-client";
+import { browserDb } from "@/lib/supabase/client";
 import { UploadError, uploadFailure } from "./errors";
+
 export interface UploadTicket {
   path: string;
-  token: string;
   endpoint: string;
 }
+
 export async function validatePdf(file: File, maxMb: number) {
   if (file.size > maxMb * 1024 * 1024) throw new UploadError("TOO_LARGE");
   if (
@@ -14,6 +16,7 @@ export async function validatePdf(file: File, maxMb: number) {
   )
     throw new UploadError("INVALID_PDF");
 }
+
 export async function uploadApi<T>(
   url: string,
   body: unknown,
@@ -49,22 +52,39 @@ export async function uploadApi<T>(
   if (!response.ok) throw uploadFailure(response.status, data);
   return data as T;
 }
-/** A single file/ticket retains its TUS upload URL in memory for safe retry. */
+
 export class PdfTransfer {
   private task?: Upload;
   private reject?: (error: UploadError) => void;
+  private cancelled = false;
   uploaded = false;
+
   constructor(
     readonly file: File,
     readonly ticket: UploadTicket,
   ) {}
+
   start(onProgress: (percent: number) => void): Promise<void> {
     if (this.uploaded) return Promise.resolve();
+    this.cancelled = false;
+
     return new Promise((resolve, reject) => {
       let timer: ReturnType<typeof setTimeout>;
+      let settled = false;
+
       const fail = (error: UploadError) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
         reject(error);
+      };
+      const succeed = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.uploaded = true;
+        onProgress(100);
+        resolve();
       };
       const resetDeadline = () => {
         clearTimeout(timer);
@@ -73,66 +93,97 @@ export class PdfTransfer {
           fail(new UploadError("TIMEOUT"));
         }, 120000);
       };
+
       this.reject = fail;
       resetDeadline();
-      const onError = (error: Error) => {
-        const response =
-          "originalResponse" in error
-            ? (
-                error as {
-                  originalResponse?: { getStatus(): number; getBody(): string };
-                }
-              ).originalResponse
-            : undefined;
-        let data: unknown = {};
-        try {
-          data = JSON.parse(response?.getBody() || "{}");
-        } catch {
-          /* Never display raw storage responses. */
+
+      void (async () => {
+        const db = browserDb();
+        const {
+          data: { session },
+          error,
+        } = await db.auth.getSession();
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+        if (error || !session?.access_token || !anonKey) {
+          fail(new UploadError("AUTH"));
+          return;
         }
-        fail(uploadFailure(response?.getStatus() || 0, data, true));
-      };
-      const callbacks = {
-        onError,
-        onProgress: (sent: number, total: number) => {
-          resetDeadline();
-          onProgress(Math.min(99, Math.round((sent / total) * 100)));
-        },
-        onSuccess: () => {
-          clearTimeout(timer);
-          this.uploaded = true;
-          onProgress(100);
-          resolve();
-        },
-      };
-      if (!this.task)
-        this.task = new Upload(this.file, {
-          endpoint: this.ticket.endpoint,
-          headers: { "x-signature": this.ticket.token },
-          metadata: {
-            bucketName: "theses",
-            objectName: this.ticket.path,
-            contentType: "application/pdf",
-            cacheControl: "3600",
+        if (this.cancelled) return;
+
+        const headers = {
+          authorization: `Bearer ${session.access_token}`,
+          apikey: anonKey,
+          "x-upsert": "false",
+        };
+
+        const onError = (uploadError: Error) => {
+          const response =
+            "originalResponse" in uploadError
+              ? (
+                  uploadError as {
+                    originalResponse?: {
+                      getStatus(): number;
+                      getBody(): string;
+                    };
+                  }
+                ).originalResponse
+              : undefined;
+          let data: unknown = {};
+          try {
+            data = JSON.parse(response?.getBody() || "{}");
+          } catch {
+            /* Never display raw Storage responses. */
+          }
+          fail(uploadFailure(response?.getStatus() || 0, data, true));
+        };
+
+        const callbacks = {
+          onError,
+          onProgress: (sent: number, total: number) => {
+            resetDeadline();
+            onProgress(Math.min(99, Math.round((sent / total) * 100)));
           },
-          chunkSize: 6 * 1024 * 1024,
-          retryDelays: [0, 1000, 3000, 5000],
-          onShouldRetry: (error) => {
-            const status = error.originalResponse?.getStatus() || 0;
-            return (
-              status === 0 || status === 408 || status === 429 || status >= 500
-            );
-          },
-          uploadDataDuringCreation: true,
-          storeFingerprintForResuming: false,
-          removeFingerprintOnSuccess: true,
-          ...callbacks,
-        });
-      else Object.assign(this.task.options, callbacks);
-      this.task.start();
+          onSuccess: () => succeed(),
+        };
+
+        if (!this.task) {
+          this.task = new Upload(this.file, {
+            endpoint: this.ticket.endpoint,
+            headers,
+            metadata: {
+              bucketName: "theses",
+              objectName: this.ticket.path,
+              contentType: "application/pdf",
+              cacheControl: "3600",
+            },
+            chunkSize: 6 * 1024 * 1024,
+            retryDelays: [0, 1000, 3000, 5000],
+            onShouldRetry: (uploadError) => {
+              const status = uploadError.originalResponse?.getStatus() || 0;
+              return (
+                status === 0 ||
+                status === 408 ||
+                status === 429 ||
+                status >= 500
+              );
+            },
+            uploadDataDuringCreation: true,
+            storeFingerprintForResuming: false,
+            removeFingerprintOnSuccess: true,
+            ...callbacks,
+          });
+        } else {
+          Object.assign(this.task.options, callbacks, { headers });
+        }
+
+        this.task.start();
+      })().catch(() => fail(new UploadError("NETWORK")));
     });
   }
+
   async cancel() {
+    this.cancelled = true;
     await this.task?.abort();
     this.reject?.(new UploadError("CANCELLED"));
   }
