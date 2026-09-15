@@ -27,7 +27,7 @@ export default function Home() {
           <a className="landing-nav-link" href="#how-it-works">
             How it works
           </a>
-          <Link className="landing-login" href="/login">
+          <Link className="landing-login btn secondary small" href="/login">
             Log in
           </Link>
           <Link href="/register" className="btn small landing-start">
